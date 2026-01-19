@@ -187,30 +187,34 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
                             />
                         ))}
                     </View>
-                    <View style={styles.sliderRow}>
+                    <View style={styles.sliderRow} onStartShouldSetResponder={() => true}>
                         <Text style={styles.label}>Genişlik</Text>
                         <Slider
-                            style={{ flex: 1, height: 30 }}
+                            style={{ flex: 1, height: 40 }}
                             minimumValue={2}
                             maximumValue={10}
                             step={1}
                             value={drawingSettings.strokeWidth}
                             onValueChange={(val) => updateSetting('strokeWidth', val)}
                             minimumTrackTintColor="#2962FF"
+                            maximumTrackTintColor="#555"
                             thumbTintColor="#2962FF"
+                            tapToSeek={true}
                         />
                     </View>
-                    <View style={styles.sliderRow}>
+                    <View style={styles.sliderRow} onStartShouldSetResponder={() => true}>
                         <Text style={styles.label}>Opaklık</Text>
                         <Slider
-                            style={{ flex: 1, height: 30 }}
+                            style={{ flex: 1, height: 40 }}
                             minimumValue={0.1}
                             maximumValue={1}
                             step={0.1}
                             value={drawingSettings.opacity}
                             onValueChange={(val) => updateSetting('opacity', val)}
                             minimumTrackTintColor="#2962FF"
+                            maximumTrackTintColor="#555"
                             thumbTintColor="#2962FF"
+                            tapToSeek={true}
                         />
                     </View>
                 </View>
@@ -225,7 +229,14 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
                             <Ionicons name="close-circle" size={24} color="#8E8E93" />
                         </TouchableOpacity>
                     </View>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.formationsScroll}>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.formationsScroll}
+                        scrollEnabled={true}
+                        nestedScrollEnabled={true}
+                        removeClippedSubviews={false}
+                    >
                         {(fieldType === 'basketball' ? BASKETBALL_FORMATIONS : FOOTBALL_FORMATIONS).map((fmt) => (
                             <TouchableOpacity
                                 key={fmt.name}
@@ -272,7 +283,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
                             <Ionicons name="close-circle" size={24} color="#8E8E93" />
                         </TouchableOpacity>
                     </View>
-                    <View style={styles.sliderRow}>
+                    <View style={styles.sliderRow} onStartShouldSetResponder={() => true}>
                         <MaterialCommunityIcons name="axis-z-rotate-clockwise" size={20} color="#CCC" style={{ marginRight: 10 }} />
                         <Slider
                             style={{ flex: 1, height: 40 }}
@@ -282,7 +293,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
                             value={fieldTilt}
                             onValueChange={setFieldTilt}
                             minimumTrackTintColor="#4CAF50"
+                            maximumTrackTintColor="#555"
                             thumbTintColor="#4CAF50"
+                            tapToSeek={true}
                         />
                         <Text style={{ color: '#FFF', width: 30, textAlign: 'right' }}>{fieldTilt}°</Text>
                     </View>
@@ -298,7 +311,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
                             <Ionicons name="close-circle" size={24} color="#8E8E93" />
                         </TouchableOpacity>
                     </View>
-                    <View style={styles.sliderRow}>
+                    <View style={styles.sliderRow} onStartShouldSetResponder={() => true}>
                         <Ionicons name="resize" size={20} color="#CCC" style={{ marginRight: 10 }} />
                         <Slider
                             style={{ flex: 1, height: 40 }}
@@ -312,7 +325,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
                                 setGlobalPlayerSize(val);
                             }}
                             minimumTrackTintColor="#FFC107"
+                            maximumTrackTintColor="#555"
                             thumbTintColor="#FFC107"
+                            tapToSeek={true}
                         />
                         <Text style={{ color: '#FFF', width: 30, textAlign: 'right' }}>{globalPlayerSize}</Text>
                     </View>
@@ -436,12 +451,16 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
 const styles = StyleSheet.create({
     wrapper: {
         position: 'absolute',
-        bottom: 40,
+        top: 0,
+        bottom: 0,
         left: 0,
         right: 0,
+        justifyContent: 'flex-end',
         alignItems: 'center',
+        paddingBottom: 40,
         zIndex: 2000,
         elevation: 100, // [FIX] Android touch issue
+        pointerEvents: 'box-none', // Allow touches to pass through wrapper
     },
     container: {
         flexDirection: 'row',
@@ -479,28 +498,28 @@ const styles = StyleSheet.create({
     },
     settingsPanel: {
         position: 'absolute',
-        bottom: 80,
+        bottom: 90, // Adjusted relative to wrapper padding
         width: 320,
         padding: 16,
         borderRadius: 20,
-        overflow: 'hidden',
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.15)',
         zIndex: 2001,
-        elevation: 100, // [FIX] Android touch issue
+        elevation: 8,
+        pointerEvents: 'auto', // [FIX] Ensure panel captures touches
     },
     formationsPanel: {
         position: 'absolute',
-        bottom: 80,
+        bottom: 90, // Adjusted relative to wrapper padding
         width: '90%',
         maxWidth: 400,
         padding: 16,
         borderRadius: 20,
-        overflow: 'hidden',
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.15)',
         zIndex: 2001,
-        elevation: 100, // [FIX] Android touch issue
+        elevation: 8,
+        pointerEvents: 'auto', // [FIX] Ensure panel captures touches
     },
     formationsScroll: {
         flexDirection: 'row',

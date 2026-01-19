@@ -18,6 +18,7 @@ import * as MediaLibrary from 'expo-media-library';
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Slider from '@react-native-community/slider';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AppProvider, useAppContext } from './context/AppContext';
 import { FootballField } from './components/FootballField';
@@ -217,7 +218,8 @@ function TacticsBoard() {
 
   const handleSave = async () => {
     try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
+      // [FIX] Request write-only permission to avoid 'audio' permission error and fix TS type error
+      const { status } = await MediaLibrary.requestPermissionsAsync(true);
       if (status !== 'granted') {
         Alert.alert('İzin Gerekli', 'Görsel kaydetmek için galeri izni gerekli.');
         return;
@@ -634,9 +636,11 @@ function TacticsBoard() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <TacticsBoard />
-    </AppProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AppProvider>
+        <TacticsBoard />
+      </AppProvider>
+    </GestureHandlerRootView>
   );
 }
 

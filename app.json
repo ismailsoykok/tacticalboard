@@ -37,6 +37,16 @@
         "projectId": "6ab5cc47-2187-4624-9cbc-8104d06077c8"
       }
     },
+    "plugins": [
+      [
+        "expo-media-library",
+        {
+          "images": true,
+          "videos": false,
+          "audio": false
+        }
+      ]
+    ],
     "owner": "ismailsoykok"
   }
 }
