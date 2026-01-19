@@ -17,10 +17,190 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height }) =
         if (points.length === 0) return '';
         let path = `M ${points[0].x} ${points[0].y}`;
         for (let i = 1; i < points.length; i++) {
-            // Smooth freehand drawing slightly? Maybe later. For now straight lines are reliable.
             path += ` L ${points[i].x} ${points[i].y}`;
         }
         return path;
+    };
+
+    // Helper: Distance from point P to segment VW
+    const distanceToSegment = (p: { x: number; y: number }, v: { x: number; y: number }, w: { x: number; y: number }) => {
+        const l2 = Math.pow(v.x - w.x, 2) + Math.pow(v.y - w.y, 2);
+        if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
+        let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+        t = Math.max(0, Math.min(1, t));
+        return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
+    };
+
+    // Helper: Calculate intersection between Circle and Line Segment
+    const getCircleLineIntersection = (
+        p1: { x: number; y: number },
+        p2: { x: number; y: number },
+        center: { x: number; y: number },
+        radius: number
+    ) => {
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const A = dx * dx + dy * dy;
+        const B = 2 * (dx * (p1.x - center.x) + dy * (p1.y - center.y));
+        const C = (p1.x - center.x) ** 2 + (p1.y - center.y) ** 2 - radius * radius;
+
+        const det = B * B - 4 * A * C;
+        const tValues: number[] = [];
+
+        if (A > 0.0000001 && det >= 0) {
+            if (det === 0) {
+                tValues.push(-B / (2 * A));
+            } else {
+                tValues.push((-B + Math.sqrt(det)) / (2 * A));
+                tValues.push((-B - Math.sqrt(det)) / (2 * A));
+            }
+        }
+
+        const intersections: { x: number; y: number, t: number }[] = [];
+        tValues.forEach(t => {
+            if (t >= 0 && t <= 1) {
+                intersections.push({
+                    x: p1.x + t * dx,
+                    y: p1.y + t * dy,
+                    t
+                });
+            }
+        });
+
+        return intersections.sort((a, b) => a.t - b.t);
+    };
+
+    // Helper: Check if point is inside circle
+    const isPointInCircle = (p: { x: number; y: number }, center: { x: number; y: number }, radius: number) => {
+        return (p.x - center.x) ** 2 + (p.y - center.y) ** 2 <= radius * radius;
+    };
+
+    const eraseAtPoint = (x: number, y: number) => {
+        // [NEW] Dynamic Radius based on Width Slider
+        // Adjusted for better precision based on user feedback (2->6px radius, 10->30px radius)
+        const ERASER_RADIUS = Math.max(5, drawingSettings.strokeWidth * 3);
+        const ERASER_STRENGTH = drawingSettings.opacity;
+
+        setDrawings((prevDrawings) => {
+            const nextDrawings: DrawingPath[] = [];
+            let hasChanges = false;
+
+            for (const drawing of prevDrawings) {
+                // 1. SHAPES (Rect, Arrow, etc.): Always Delete on Touch (User Requirement)
+                if (drawing.type !== 'free') {
+                    let isTouched = false;
+
+                    if (drawing.points.length >= 2) {
+                        const start = drawing.points[0];
+                        const end = drawing.points[drawing.points.length - 1];
+
+                        if (drawing.type === 'arrow') {
+                            if (distanceToSegment({ x, y }, start, end) < ERASER_RADIUS) {
+                                isTouched = true;
+                            }
+                        }
+                        else {
+                            if (drawing.points.some(p => Math.hypot(p.x - x, p.y - y) < ERASER_RADIUS + 20)) isTouched = true;
+                            const centerX = (start.x + end.x) / 2;
+                            const centerY = (start.y + end.y) / 2;
+                            if (Math.hypot(centerX - x, centerY - y) < ERASER_RADIUS + 20) isTouched = true;
+                        }
+                    }
+
+                    if (isTouched) {
+                        hasChanges = true;
+                        // Effectively deleted
+                    } else {
+                        nextDrawings.push(drawing);
+                    }
+                    continue;
+                }
+
+                // 2. FREEHAND: Soft Erase Logic
+                const originalPoints = drawing.points;
+                const currentOpacity = drawing.settings.opacity ?? 1.0;
+
+                if (originalPoints.length < 2) {
+                    if (isPointInCircle(originalPoints[0], { x, y }, ERASER_RADIUS)) {
+                        hasChanges = true;
+                        const newOp = currentOpacity - ERASER_STRENGTH;
+                        if (newOp > 0.05) {
+                            nextDrawings.push({ ...drawing, settings: { ...drawing.settings, opacity: newOp } });
+                        }
+                    } else {
+                        nextDrawings.push(drawing);
+                    }
+                    continue;
+                }
+
+                // Chunking Loop for soft erase
+                // We split the path into segments based on whether they are INSIDE or OUTSIDE the eraser.
+                // INSIDE segments -> reduced opacity. OUTSIDE -> original opacity.
+
+                const newPaths: { points: { x: number; y: number }[], isInside: boolean }[] = [];
+                let currentSegment: { x: number; y: number }[] = [];
+                let currentlyInside = isPointInCircle(originalPoints[0], { x, y }, ERASER_RADIUS);
+                currentSegment.push(originalPoints[0]);
+
+                let isModifiedStrand = false;
+
+                for (let i = 0; i < originalPoints.length - 1; i++) {
+                    const p1 = originalPoints[i];
+                    const p2 = originalPoints[i + 1];
+                    const intersections = getCircleLineIntersection(p1, p2, { x, y }, ERASER_RADIUS);
+
+                    if (intersections.length === 0) {
+                        currentSegment.push(p2);
+                        if (currentlyInside) {
+                            isModifiedStrand = true;
+                            hasChanges = true;
+                        }
+                    } else {
+                        hasChanges = true;
+                        isModifiedStrand = true;
+
+                        intersections.forEach(inters => {
+                            currentSegment.push({ x: inters.x, y: inters.y });
+
+                            if (currentSegment.length > 1 || (currentSegment.length === 1 && originalPoints.length === 1)) {
+                                newPaths.push({ points: currentSegment, isInside: currentlyInside });
+                            }
+
+                            currentSegment = [{ x: inters.x, y: inters.y }];
+                            currentlyInside = !currentlyInside;
+                        });
+
+                        currentSegment.push(p2);
+                    }
+                }
+
+                if (currentSegment.length > 0) {
+                    if (currentSegment.length > 1 || (currentSegment.length === 1 && originalPoints.length === 1)) {
+                        newPaths.push({ points: currentSegment, isInside: currentlyInside });
+                    }
+                }
+
+                if (!isModifiedStrand) {
+                    nextDrawings.push(drawing);
+                } else {
+                    newPaths.forEach((pathObj, idx) => {
+                        // Apply eraser strength only to INSIDE parts
+                        const newOp = pathObj.isInside ? (currentOpacity - ERASER_STRENGTH) : currentOpacity;
+
+                        if (newOp > 0.05) {
+                            nextDrawings.push({
+                                ...drawing,
+                                id: `${drawing.id}_${pathObj.isInside ? 'fade' : 'keep'}_${Date.now()}_${idx}`,
+                                points: pathObj.points,
+                                settings: { ...drawing.settings, opacity: newOp }
+                            });
+                        }
+                    });
+                }
+            }
+
+            return hasChanges ? nextDrawings : prevDrawings;
+        });
     };
 
     const panResponder = useMemo(() =>
@@ -32,46 +212,35 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height }) =
 
             onPanResponderGrant: (event) => {
                 const { locationX, locationY } = event.nativeEvent;
-                // Save history at the start of any gesture (drawing or erasing)
+                const clampedX = Math.max(0, Math.min(width, locationX));
+                const clampedY = Math.max(0, Math.min(height, locationY));
+
                 saveHistory();
 
-                currentPath.current = [{ x: locationX, y: locationY }];
-
-                // Start erasing immediately on touch
                 if (drawingType === 'eraser') {
-                    setDrawings((prev) => {
-                        return prev.filter((d) => {
-                            return !d.points.some(p =>
-                                Math.abs(p.x - locationX) < 50 &&
-                                Math.abs(p.y - locationY) < 50
-                            );
-                        });
-                    });
+                    eraseAtPoint(clampedX, clampedY);
+                    return;
                 }
+
+                currentPath.current = [{ x: clampedX, y: clampedY }];
             },
             onPanResponderMove: (event) => {
                 const { locationX, locationY } = event.nativeEvent;
+                const clampedX = Math.max(0, Math.min(width, locationX));
+                const clampedY = Math.max(0, Math.min(height, locationY));
 
                 if (drawingType === 'eraser') {
-                    setDrawings((prev) => {
-                        return prev.filter((d) => {
-                            // Expanded radius for better detection (50 pixels)
-                            return !d.points.some(p =>
-                                Math.abs(p.x - locationX) < 50 &&
-                                Math.abs(p.y - locationY) < 50
-                            );
-                        });
-                    });
+                    eraseAtPoint(clampedX, clampedY);
                     return;
                 }
 
                 if (drawingType === 'free') {
-                    currentPath.current.push({ x: locationX, y: locationY });
+                    currentPath.current.push({ x: clampedX, y: clampedY });
                 } else {
                     if (currentPath.current.length > 1) {
-                        currentPath.current[1] = { x: locationX, y: locationY };
+                        currentPath.current[1] = { x: clampedX, y: clampedY };
                     } else {
-                        currentPath.current.push({ x: locationX, y: locationY });
+                        currentPath.current.push({ x: clampedX, y: clampedY });
                     }
                 }
 
@@ -237,7 +406,7 @@ export const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ width, height }) =
 
     return (
         <View
-            style={[styles.container, { width, height, zIndex: isDrawingMode ? 999 : 0 }]}
+            style={[styles.container, { width, height, zIndex: isDrawingMode ? 999 : 0, elevation: isDrawingMode ? 20 : 0 }]}
             pointerEvents={isDrawingMode ? 'auto' : 'none'}
             {...panResponder.panHandlers}
         >
@@ -253,6 +422,5 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 0,
         left: 0,
-        elevation: 20,
     },
 });

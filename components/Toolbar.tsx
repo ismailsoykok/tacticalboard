@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, TouchableOpacity, Text, Alert, ScrollView } from 'react-native';
-import { BlurView } from 'expo-blur';
+// import { BlurView } from 'expo-blur';
 import { MaterialIcons, MaterialCommunityIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
 import Slider from '@react-native-community/slider';
@@ -92,6 +92,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
         if (type !== 'eraser') {
             updateSetting('strokeWidth', 5);
             updateSetting('opacity', 1.0); // Full opacity by default
+        } else {
+            // [NEW] Eraser defaults
+            updateSetting('strokeWidth', 6); // Default eraser size (Medium)
         }
     };
 
@@ -123,7 +126,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
 
             {/* Settings Panel */}
             {showSettings && isDrawingMode && (
-                <BlurView intensity={90} tint="dark" style={styles.settingsPanel}>
+                <View style={[styles.settingsPanel, { backgroundColor: 'rgba(30,30,30,0.95)' }]}>
                     <View style={styles.settingsHeader}>
                         <Text style={styles.settingsTitle}>Ayar</Text>
                         <TouchableOpacity onPress={() => setShowSettings(false)}>
@@ -210,12 +213,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
                             thumbTintColor="#2962FF"
                         />
                     </View>
-                </BlurView>
+                </View>
             )}
 
             {/* Formations List Panel */}
             {showFormations && (
-                <BlurView intensity={90} tint="dark" style={styles.formationsPanel}>
+                <View style={[styles.formationsPanel, { backgroundColor: 'rgba(30,30,30,0.95)' }]}>
                     <View style={styles.settingsHeader}>
                         <Text style={styles.settingsTitle}>Diziliş Seç</Text>
                         <TouchableOpacity onPress={() => setShowFormations(false)}>
@@ -234,12 +237,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
                             </TouchableOpacity>
                         ))}
                     </ScrollView>
-                </BlurView>
+                </View>
             )}
 
             {/* Global Color Panel */}
             {showGlobalColor && (
-                <BlurView intensity={90} tint="dark" style={styles.settingsPanel}>
+                <View style={[styles.settingsPanel, { backgroundColor: 'rgba(30,30,30,0.95)' }]}>
                     <View style={styles.settingsHeader}>
                         <Text style={styles.settingsTitle}>Takım Rengi (Tümü)</Text>
                         <TouchableOpacity onPress={() => setShowGlobalColor(false)}>
@@ -257,12 +260,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
                             />
                         ))}
                     </View>
-                </BlurView>
+                </View>
             )}
 
             {/* Tilt Check Panel */}
             {showTilt && (
-                <BlurView intensity={90} tint="dark" style={styles.settingsPanel}>
+                <View style={[styles.settingsPanel, { backgroundColor: 'rgba(30,30,30,0.95)' }]}>
                     <View style={styles.settingsHeader}>
                         <Text style={styles.settingsTitle}>Saha Eğimi</Text>
                         <TouchableOpacity onPress={() => setShowTilt(false)}>
@@ -283,12 +286,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
                         />
                         <Text style={{ color: '#FFF', width: 30, textAlign: 'right' }}>{fieldTilt}°</Text>
                     </View>
-                </BlurView>
+                </View>
             )}
 
             {/* Player Size Panel */}
             {showSize && (
-                <BlurView intensity={90} tint="dark" style={styles.settingsPanel}>
+                <View style={[styles.settingsPanel, { backgroundColor: 'rgba(30,30,30,0.95)' }]}>
                     <View style={styles.settingsHeader}>
                         <Text style={styles.settingsTitle}>Oyuncu Boyutu (Genel)</Text>
                         <TouchableOpacity onPress={() => setShowSize(false)}>
@@ -313,12 +316,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
                         />
                         <Text style={{ color: '#FFF', width: 30, textAlign: 'right' }}>{globalPlayerSize}</Text>
                     </View>
-                </BlurView>
+                </View>
             )}
 
 
             {/* Main Toolbar */}
-            <BlurView intensity={80} tint="dark" style={styles.container}>
+            <View style={[styles.container, { backgroundColor: 'rgba(30,30,30,0.95)' }]}>
 
                 {/* Undo */}
                 <TouchableOpacity style={styles.item} onPress={undoDrawing}>
@@ -425,7 +428,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
                         </View>
                     </TouchableOpacity>
                 </View>
-            </BlurView>
+            </View>
         </View>
     );
 };
@@ -438,6 +441,7 @@ const styles = StyleSheet.create({
         right: 0,
         alignItems: 'center',
         zIndex: 2000,
+        elevation: 100, // [FIX] Android touch issue
     },
     container: {
         flexDirection: 'row',
@@ -449,6 +453,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.08)', // More subtle border
         maxWidth: '94%', // Prevent touching screen edges
+        elevation: 100, // [FIX] Android touch issue
     },
     group: {
         flexDirection: 'row',
@@ -482,6 +487,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.15)',
         zIndex: 2001,
+        elevation: 100, // [FIX] Android touch issue
     },
     formationsPanel: {
         position: 'absolute',
@@ -494,6 +500,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.15)',
         zIndex: 2001,
+        elevation: 100, // [FIX] Android touch issue
     },
     formationsScroll: {
         flexDirection: 'row',

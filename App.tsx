@@ -82,6 +82,7 @@ function TacticsBoard() {
   } = useAppContext();
 
   // Sync editSize when editing a different player
+  // Sync editSize ONLY when opening the modal for a new player
   useEffect(() => {
     if (editingPlayerId) {
       const player = fieldPlayers.find(p => p.id === editingPlayerId);
@@ -89,7 +90,7 @@ function TacticsBoard() {
         setEditSize(player.size ?? globalPlayerSize);
       }
     }
-  }, [editingPlayerId, fieldPlayers, globalPlayerSize]);
+  }, [editingPlayerId]); // Removed fieldPlayers and globalPlayerSize to prevent reset on updates
 
   const onFieldLayout = useCallback((event: any) => {
     const { width, height } = event.nativeEvent.layout;
@@ -123,7 +124,7 @@ function TacticsBoard() {
     setShowAddPlayer(false);
   };
 
-  const handlePlayerPress = (playerId: string) => {
+  const handlePlayerPress = useCallback((playerId: string) => {
     if (isDrawingMode) return;
 
     const player = fieldPlayers.find(p => p.id === playerId);
@@ -134,7 +135,7 @@ function TacticsBoard() {
       setEditSize(player.size ?? globalPlayerSize); // Show player's current size
       setShowEditPlayer(true);
     }
-  };
+  }, [isDrawingMode, fieldPlayers, globalPlayerSize]);
 
   const handleSaveEdit = () => {
     if (editingPlayerId) {
@@ -289,11 +290,11 @@ function TacticsBoard() {
               {
                 width: fieldDimensions.width,
                 height: fieldDimensions.height,
-                transform: [
+                transform: fieldTilt > 0 ? [
                   { perspective: 1000 },
                   { rotateX: `${fieldTilt}deg` },
                   { scale: 1 - (fieldTilt * 0.005) }
-                ]
+                ] : []
               },
             ]}
           >
@@ -339,9 +340,7 @@ function TacticsBoard() {
         )}
       </View>
 
-      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 9999 }}>
-        <Toolbar onSave={handleSave} />
-      </View>
+      <Toolbar onSave={handleSave} />
 
       {/* Modals */}
 
@@ -562,76 +561,74 @@ function TacticsBoard() {
         transparent={true}
         onRequestClose={() => setShowEditIcon(false)}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <View style={{ width: 24 }} />
-                <Text style={[styles.modalTitle, { marginBottom: 0 }]}>İkon Düzenle</Text>
-                <TouchableOpacity onPress={handleDeleteIcon} style={{ padding: 4 }}>
-                  <MaterialCommunityIcons name="trash-can-outline" size={24} color="#FF3B30" />
-                </TouchableOpacity>
-              </View>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <View style={{ width: 24 }} />
+              <Text style={[styles.modalTitle, { marginBottom: 0 }]}>İkon Düzenle</Text>
+              <TouchableOpacity onPress={handleDeleteIcon} style={{ padding: 4 }}>
+                <MaterialCommunityIcons name="trash-can-outline" size={24} color="#FF3B30" />
+              </TouchableOpacity>
+            </View>
 
-              <Text style={styles.inputLabel}>Etiket (Opsiyonel)</Text>
-              <TextInput
-                style={styles.input}
-                value={editIconLabel}
-                onChangeText={setEditIconLabel}
-                placeholder="İsim veya Not"
-                placeholderTextColor="#666"
+            <Text style={styles.inputLabel}>Etiket (Opsiyonel)</Text>
+            <TextInput
+              style={styles.input}
+              value={editIconLabel}
+              onChangeText={setEditIconLabel}
+              placeholder="İsim veya Not"
+              placeholderTextColor="#666"
+            />
+
+            {/* SIZE SLIDER */}
+            <Text style={styles.inputLabel}>Boyut: {Math.round(editIconSize)}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <Ionicons name="resize" size={20} color="#8E8E93" style={{ marginRight: 10 }} />
+              <Slider
+                style={{ flex: 1, height: 40 }}
+                minimumValue={20}
+                maximumValue={80}
+                step={2}
+                value={editIconSize}
+                onValueChange={setEditIconSize}
+                minimumTrackTintColor="#FFC107"
+                thumbTintColor="#FFC107"
               />
+            </View>
 
-              {/* SIZE SLIDER */}
-              <Text style={styles.inputLabel}>Boyut: {Math.round(editIconSize)}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-                <Ionicons name="resize" size={20} color="#8E8E93" style={{ marginRight: 10 }} />
-                <Slider
-                  style={{ flex: 1, height: 40 }}
-                  minimumValue={20}
-                  maximumValue={80}
-                  step={2}
-                  value={editIconSize}
-                  onValueChange={setEditIconSize}
-                  minimumTrackTintColor="#FFC107"
-                  thumbTintColor="#FFC107"
+            <Text style={styles.inputLabel}>Renk</Text>
+            <View style={styles.colorGrid}>
+              {COLORS.map((color) => (
+                <TouchableOpacity
+                  key={color}
+                  style={[styles.colorOption, { backgroundColor: color }, editIconColor === color && styles.selectedColorOption]}
+                  onPress={() => {
+                    setEditIconColor(color);
+                    if (editingIconId) updateIconColor(editingIconId, color);
+                  }}
                 />
-              </View>
+              ))}
+            </View>
 
-              <Text style={styles.inputLabel}>Renk</Text>
-              <View style={styles.colorGrid}>
-                {COLORS.map((color) => (
-                  <TouchableOpacity
-                    key={color}
-                    style={[styles.colorOption, { backgroundColor: color }, editIconColor === color && styles.selectedColorOption]}
-                    onPress={() => {
-                      setEditIconColor(color);
-                      if (editingIconId) updateIconColor(editingIconId, color);
-                    }}
-                  />
-                ))}
-              </View>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowEditIcon(false)}
+              >
+                <Text style={styles.modalButtonText}>İptal</Text>
+              </TouchableOpacity>
 
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.cancelButton]}
-                  onPress={() => setShowEditIcon(false)}
-                >
-                  <Text style={styles.modalButtonText}>İptal</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.confirmButton]}
-                  onPress={handleSaveIconEdit}
-                >
-                  <Text style={styles.modalButtonText}>Kaydet</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmButton]}
+                onPress={handleSaveIconEdit}
+              >
+                <Text style={styles.modalButtonText}>Kaydet</Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </TouchableWithoutFeedback>
+        </View>
       </Modal>
-    </SafeAreaView>
+    </SafeAreaView >
   );
 }
 

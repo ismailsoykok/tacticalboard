@@ -36,13 +36,24 @@ export const Player: React.FC<PlayerProps> = ({
         pan.setValue({ x: startX, y: startY });
     }, [player.x, player.y, fieldWidth, fieldHeight]);
 
+    // Fix for Stale Closure: Keep track of latest props
+    const latestProps = useRef({ onPress, onLongPress, onPositionChange, player, disabled });
+
+    // Update ref on every render
+    React.useEffect(() => {
+        latestProps.current = { onPress, onLongPress, onPositionChange, player, disabled };
+    });
+
+    const hasLongPressed = useRef(false);
+
     const panResponder = useRef(
         PanResponder.create({
-            onStartShouldSetPanResponder: () => !disabled,
-            onMoveShouldSetPanResponder: () => !disabled,
+            onStartShouldSetPanResponder: () => !latestProps.current.disabled,
+            onMoveShouldSetPanResponder: () => !latestProps.current.disabled,
 
             onPanResponderGrant: () => {
                 isDragging.current = false;
+                hasLongPressed.current = false;
                 pan.setOffset({
                     x: (pan.x as any)._value,
                     y: (pan.y as any)._value,
@@ -54,10 +65,11 @@ export const Player: React.FC<PlayerProps> = ({
                     useNativeDriver: true,
                 }).start();
 
-                if (onLongPress) {
+                if (latestProps.current.onLongPress) {
                     longPressTimer.current = setTimeout(() => {
                         if (!isDragging.current) {
-                            onLongPress(player.id);
+                            hasLongPressed.current = true;
+                            latestProps.current.onLongPress!(latestProps.current.player.id);
                         }
                     }, 600);
                 }
@@ -90,18 +102,20 @@ export const Player: React.FC<PlayerProps> = ({
                     useNativeDriver: true,
                 }).start();
 
-                if (!isDragging.current && onPress) {
-                    onPress(player.id);
+                // Only trigger onPress if NOT dragging AND NOT long-pressed
+                if (!isDragging.current && !hasLongPressed.current && latestProps.current.onPress) {
+                    latestProps.current.onPress(latestProps.current.player.id);
                 } else if (isDragging.current) {
                     const newX = (pan.x as any)._value + playerSize / 2;
                     const newY = (pan.y as any)._value + playerSize / 2;
 
                     const percentX = Math.max(0, Math.min(100, (newX / fieldWidth) * 100));
                     const percentY = Math.max(0, Math.min(100, (newY / fieldHeight) * 100));
-                    onPositionChange(player.id, percentX, percentY);
+                    latestProps.current.onPositionChange(latestProps.current.player.id, percentX, percentY);
                 }
 
                 isDragging.current = false;
+                hasLongPressed.current = false;
             },
         })
     ).current;
@@ -162,7 +176,8 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.4,
         shadowRadius: 3,
-        elevation: 6,
+        shadowRadius: 3,
+        elevation: 10,
     },
     number: {
         fontSize: 16,

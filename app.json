@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "futboltahtasi",
-    "slug": "futboltahtasi",
+    "slug": "taktik-tahtasi",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -21,10 +21,22 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.futboltahtasi.app",
+      "permissions": [
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "6ab5cc47-2187-4624-9cbc-8104d06077c8"
+      }
+    },
+    "owner": "ismailsoykok"
   }
 }
