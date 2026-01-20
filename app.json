@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "futboltahtasi",
-    "slug": "taktik-tahtasi",
+    "slug": "taktik-tahtasi-deneme1",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -31,11 +31,6 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "6ab5cc47-2187-4624-9cbc-8104d06077c8"
-      }
     },
     "plugins": [
       [

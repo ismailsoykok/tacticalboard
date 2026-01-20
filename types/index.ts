@@ -7,6 +7,9 @@ export interface Player {
     number: number;
     color?: string;
     size?: number; // Added optional size
+    salary?: number;
+    purchasePrice?: number;
+    salePrice?: number;
 }
 
 export interface FieldPlayer extends Player {
