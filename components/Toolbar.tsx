@@ -39,7 +39,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
         setFieldTilt,
         globalPlayerSize,
         setGlobalPlayerSize,
-        updateAllPlayersColor,
+        updateAllPlayersColor, // Legacy? Maybe keep for now or replace usage
+        updateGlobalKitColor,
+        updateGlobalNumberColor,
         icons,
         setIcons,
         fieldType
@@ -52,7 +54,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
     const [showSize, setShowSize] = useState(false);
     const [showGlobalColor, setShowGlobalColor] = useState(false);
 
-    const COLORS = ['#2196F3', '#F44336', '#4CAF50', '#FFC107', '#9C27B0', '#212121', '#FFFFFF', '#FF5722'];
+    const COLORS = ['#2196F3', '#F44336', '#4CAF50', '#FFC107', '#9C27B0', '#212121', '#FFFFFF', '#FF5722', '#163962'];
 
     const handleClearAll = () => {
         Alert.alert(
@@ -255,19 +257,30 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
             {showGlobalColor && (
                 <View style={[styles.settingsPanel, { backgroundColor: 'rgba(30,30,30,0.95)' }]}>
                     <View style={styles.settingsHeader}>
-                        <Text style={styles.settingsTitle}>Takım Rengi (Tümü)</Text>
+                        <Text style={styles.settingsTitle}>Takım Renkleri</Text>
                         <TouchableOpacity onPress={() => setShowGlobalColor(false)}>
                             <Ionicons name="close-circle" size={24} color="#8E8E93" />
                         </TouchableOpacity>
                     </View>
+
+                    <Text style={[styles.label, { width: 100, marginBottom: 5 }]}>Forma Rengi</Text>
                     <View style={styles.colorsRow}>
                         {COLORS.map((color) => (
                             <TouchableOpacity
-                                key={color}
+                                key={`g-team-${color}`}
                                 style={[styles.colorCircle, { backgroundColor: color }]}
-                                onPress={() => {
-                                    updateAllPlayersColor(color);
-                                }}
+                                onPress={() => updateGlobalKitColor(color)}
+                            />
+                        ))}
+                    </View>
+
+                    <Text style={[styles.label, { width: 100, marginBottom: 5, marginTop: 10 }]}>Numara Rengi</Text>
+                    <View style={styles.colorsRow}>
+                        {COLORS.map((color) => (
+                            <TouchableOpacity
+                                key={`g-num-${color}`}
+                                style={[styles.colorCircle, { backgroundColor: color }]}
+                                onPress={() => updateGlobalNumberColor(color)}
                             />
                         ))}
                     </View>

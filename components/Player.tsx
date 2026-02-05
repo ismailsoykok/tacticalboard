@@ -123,6 +123,8 @@ export const Player: React.FC<PlayerProps> = ({
     const isLight = (player.color || '#2196F3') === '#FFFFFF' || (player.color || '#2196F3') === '#FFC107';
     const textColor = isLight ? '#000' : '#FFF';
 
+    const dynamicFontSize = playerSize * 0.4;
+
     return (
         <Animated.View
             style={[
@@ -150,7 +152,7 @@ export const Player: React.FC<PlayerProps> = ({
                     },
                 ]}
             >
-                <Text style={[styles.number, { color: textColor }]}>{player.number}</Text>
+                <Text style={[styles.number, { color: player.numberColor || textColor, fontSize: dynamicFontSize }]}>{player.number}</Text>
             </Animated.View>
 
             {/* Name label - completely separate from circle */}
@@ -175,7 +177,6 @@ const styles = StyleSheet.create({
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.4,
-        shadowRadius: 3,
         shadowRadius: 3,
         elevation: 10,
     },

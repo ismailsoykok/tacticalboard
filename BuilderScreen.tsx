@@ -31,7 +31,7 @@ import { Toolbar } from './components/Toolbar';
 import { FieldType, IconType } from './types';
 
 const FIELD_ASPECT_RATIO = 1.6;
-const COLORS = ['#2196F3', '#F44336', '#4CAF50', '#FFC107', '#9C27B0', '#212121', '#FFFFFF', '#FF5722'];
+const COLORS = ['#2196F3', '#F44336', '#4CAF50', '#FFC107', '#9C27B0', '#212121', '#FFFFFF', '#FF5722', '#163962'];
 
 function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
     const viewShotRef = useRef<ViewShot>(null);
@@ -85,6 +85,9 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
         updatePlayerName,
         updatePlayerNumber,
         updatePlayerSize,
+        updatePlayerNumberColor, // New
+        globalKitColor,
+        globalNumberColor,
         addPlayerToField,
         removePlayerFromField,
         isDrawingMode,
@@ -102,6 +105,7 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
         removeIcon,
         setFieldPlayers,
         setIcons,
+        setIsDrawingMode,
     } = useAppContext();
 
     // Sync editSize when editing a different player
@@ -111,6 +115,7 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
             const player = fieldPlayers.find(p => p.id === editingPlayerId);
             if (player) {
                 setEditSize(player.size ?? globalPlayerSize);
+                // Also could sync color if needed, but color is handled in modal open
             }
         }
     }, [editingPlayerId]); // Removed fieldPlayers and globalPlayerSize to prevent reset on updates
@@ -212,7 +217,8 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
             name: newPlayerName,
             number: parseInt(newPlayerNumber) || 0,
             position: 'MF' as any,
-            color: '#2196F3',
+            color: globalKitColor, // Use global state
+            numberColor: globalNumberColor, // Use global state
             salary: rebuildMode ? (parseInt(newPlayerSalary) || 0) : undefined,
             purchasePrice: rebuildMode && rebuildPhase === 'active' ? (parseInt(newPlayerCost) || 0) : undefined,
         };
@@ -228,6 +234,7 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
             const dropY = oldPlayer ? oldPlayer.y : 50;
 
             removePlayerFromField(pendingTransferId);
+            setIsDrawingMode(false); // Force disable drawing mode
             addPlayerToField(newPlayer, dropX, dropY);
 
             // Update Finance
@@ -240,6 +247,7 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
             setTransferSalePrice('');
         } else {
             // Normal Add (Setup Phase)
+            setIsDrawingMode(false); // Force disable drawing mode
             addPlayerToField(newPlayer, 50, 50);
         }
 
@@ -304,6 +312,11 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
             setEditNumber(player.number.toString());
             setEditSize(player.size ?? globalPlayerSize);
             setEditSalary(player.salary ? player.salary.toString() : '');
+            // Number color logic? Currently we don't have separate state for editNumberColor in BuilderScreen,
+            // we update directly or use local state if implemented.
+            // Let's rely on direct update mostly, or maybe I should add state for it?
+            // "Updated handlePlayerPress to load numberColor..." in plan.
+            // I need a state for editNumberColor.
             setShowEditPlayer(true);
         }
     }, [isDrawingMode, fieldPlayers, globalPlayerSize]);
@@ -313,6 +326,11 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
             if (editName) updatePlayerName(editingPlayerId, editName);
             if (editNumber) updatePlayerNumber(editingPlayerId, parseInt(editNumber) || 0);
             updatePlayerSize(editingPlayerId, editSize);
+            // new number color update handled separately via immediate press? Or save button?
+            // "Update handleSaveEdit to save numberColor"
+            // I'll implement immediate update for colors as per typical UX here or state?
+            // Existing `handleColorSelect` updates immediately.
+            // I will implement separate `handleNumberColorSelect`.
 
             // Should we allow salary update in active mode? Maybe only setup?
             // Let's allow it in Setup, but forbid in Active? Or allow always?
@@ -348,6 +366,12 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
         }
     };
 
+    const handleNumberColorSelect = (color: string) => {
+        if (editingPlayerId) {
+            updatePlayerNumberColor(editingPlayerId, color);
+        }
+    };
+
     const handlePlayerLongPress = (playerId: string) => {
         Alert.alert(
             'Oyuncu',
@@ -364,6 +388,7 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
     };
 
     const handleAddIcon = (type: IconType) => {
+        setIsDrawingMode(false); // Force disable drawing mode
         addIcon(type, 50, 50);
         setShowAddIcon(false);
     };
@@ -532,52 +557,60 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
                             {
                                 width: fieldDimensions.width,
                                 height: fieldDimensions.height,
+                            },
+                        ]}
+                    >
+                        <View
+                            collapsable={false}
+                            style={{
+                                width: fieldDimensions.width,
+                                height: fieldDimensions.height,
                                 transform: fieldTilt > 0 ? [
                                     { perspective: 1000 },
                                     { rotateX: `${fieldTilt}deg` },
                                     { scale: 1 - (fieldTilt * 0.005) }
                                 ] : []
-                            },
-                        ]}
-                    >
-                        {/* Layer 1: Football Field */}
-                        <FootballField
-                            width={fieldDimensions.width}
-                            height={fieldDimensions.height}
-                        />
+                            }}
+                        >
+                            {/* Layer 1: Football Field */}
+                            <FootballField
+                                width={fieldDimensions.width}
+                                height={fieldDimensions.height}
+                            />
 
-                        {/* Layer 2: Players */}
-                        <View style={StyleSheet.absoluteFill}>
-                            {fieldPlayers.map((player) => (
-                                <Player
-                                    key={player.id}
-                                    player={player}
-                                    fieldWidth={fieldDimensions.width}
-                                    fieldHeight={fieldDimensions.height}
-                                    onPositionChange={updatePlayerPosition}
-                                    onPress={handlePlayerPress}
-                                    onLongPress={handlePlayerLongPress}
-                                    disabled={isDrawingMode}
-                                />
-                            ))}
-                            {icons.map((icon) => (
-                                <IconObject
-                                    key={icon.id}
-                                    icon={icon}
-                                    fieldWidth={fieldDimensions.width}
-                                    fieldHeight={fieldDimensions.height}
-                                    onPositionChange={updateIconPosition}
-                                    onPress={handleIconPress}
-                                    disabled={isDrawingMode}
-                                />
-                            ))}
+                            {/* Layer 2: Players */}
+                            <View style={StyleSheet.absoluteFill}>
+                                {fieldPlayers.map((player) => (
+                                    <Player
+                                        key={player.id}
+                                        player={player}
+                                        fieldWidth={fieldDimensions.width}
+                                        fieldHeight={fieldDimensions.height}
+                                        onPositionChange={updatePlayerPosition}
+                                        onPress={handlePlayerPress}
+                                        onLongPress={handlePlayerLongPress}
+                                        disabled={isDrawingMode}
+                                    />
+                                ))}
+                                {icons.map((icon) => (
+                                    <IconObject
+                                        key={icon.id}
+                                        icon={icon}
+                                        fieldWidth={fieldDimensions.width}
+                                        fieldHeight={fieldDimensions.height}
+                                        onPositionChange={updateIconPosition}
+                                        onPress={handleIconPress}
+                                        disabled={isDrawingMode}
+                                    />
+                                ))}
+                            </View>
+
+                            {/* Layer 3: Drawing Canvas */}
+                            <DrawingCanvas
+                                width={fieldDimensions.width}
+                                height={fieldDimensions.height}
+                            />
                         </View>
-
-                        {/* Layer 3: Drawing Canvas */}
-                        <DrawingCanvas
-                            width={fieldDimensions.width}
-                            height={fieldDimensions.height}
-                        />
                     </ViewShot>
                 )}
             </View>
@@ -771,16 +804,7 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
                                 </>
                             )}
 
-                            <Text style={styles.inputLabel}>Renk</Text>
-                            <View style={styles.colorGrid}>
-                                {COLORS.map((color) => (
-                                    <TouchableOpacity
-                                        key={color}
-                                        style={[styles.colorOption, { backgroundColor: color }]}
-                                        onPress={() => handleColorSelect(color)}
-                                    />
-                                ))}
-                            </View>
+
 
                             <View style={styles.modalButtons}>
                                 {rebuildMode && rebuildPhase === 'active' ? (

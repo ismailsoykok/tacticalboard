@@ -6,6 +6,7 @@ export interface Player {
     position: Position;
     number: number;
     color?: string;
+    numberColor?: string; // Color of the jersey number text
     size?: number; // Added optional size
     salary?: number;
     purchasePrice?: number;
@@ -52,6 +53,7 @@ export interface FormationPosition {
     x: number;
     y: number;
     label: string;
+    number?: number;
 }
 
 export interface Formation {

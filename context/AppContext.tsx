@@ -36,6 +36,11 @@ interface AppContextType {
     updatePlayerNumber: (playerId: string, number: number) => void;
     updatePlayerSize: (playerId: string, size: number) => void;
     updateAllPlayersColor: (color: string) => void;
+    updatePlayerNumberColor: (playerId: string, color: string) => void;
+    globalKitColor: string;
+    globalNumberColor: string;
+    updateGlobalKitColor: (color: string) => void;
+    updateGlobalNumberColor: (color: string) => void;
     removePlayerFromField: (playerId: string) => void;
     clearDrawings: () => void;
     undoDrawing: () => void;
@@ -61,7 +66,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
     const [fieldType, setFieldType] = useState<FieldType>('classic');
     const [fieldTilt, setFieldTilt] = useState(0);
-    const [globalPlayerSize, setGlobalPlayerSize] = useState(44);
+    const [globalPlayerSize, setGlobalPlayerSize] = useState(30);
+    const [globalKitColor, setGlobalKitColor] = useState('#2196F3');
+    const [globalNumberColor, setGlobalNumberColor] = useState('#FFFFFF');
     const [selectedFormation, setSelectedFormation] = useState<string | null>(null);
     const [availablePlayers] = useState<Player[]>(playersData as Player[]);
 
@@ -198,7 +205,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                         name: '',
                         position: 'MF',
                         number: newPlayers.length + 1 + i,
-                        color: '#2196F3',
+                        color: globalKitColor,
+                        numberColor: globalNumberColor,
                         x: 50, y: 50
                     });
                 }
@@ -216,6 +224,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                         ...player,
                         x: targetPos.x,
                         y: targetPos.y,
+                        // Use formation-specific number if available, otherwise keep existing or calculate
+                        number: targetPos.number ?? player.number,
                         name: newName
                     };
                 }
@@ -259,7 +269,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 updatePlayerName,
                 updatePlayerNumber,
                 updatePlayerSize,
-                updateAllPlayersColor,
+                updateAllPlayersColor, // Existing
+                updatePlayerNumberColor: (playerId: string, color: string) => {
+                    setFieldPlayers((prev) =>
+                        prev.map((p) => (p.id === playerId ? { ...p, numberColor: color } : p))
+                    );
+                },
+                globalKitColor,
+                globalNumberColor,
+                updateGlobalKitColor: (color: string) => {
+                    setGlobalKitColor(color);
+                    setFieldPlayers((prev) => prev.map((p) => ({ ...p, color: color })));
+                },
+                updateGlobalNumberColor: (color: string) => {
+                    setGlobalNumberColor(color);
+                    setFieldPlayers((prev) => prev.map((p) => ({ ...p, numberColor: color })));
+                },
                 removePlayerFromField,
                 clearDrawings,
                 undoDrawing,

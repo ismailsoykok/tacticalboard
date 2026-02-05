@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { FOOTBALL_FORMATIONS, BASKETBALL_FORMATIONS } from '../data/formations';
 import { useAppContext } from '../context/AppContext';
 
@@ -19,7 +19,12 @@ export const FormationPicker: React.FC = () => {
     return (
         <View style={styles.container}>
             <Text style={styles.title}>Diziliş</Text>
-            <View style={styles.buttonContainer}>
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.scrollView}
+                contentContainerStyle={styles.buttonContainer}
+            >
                 {activeFormations.map((formation) => (
                     <TouchableOpacity
                         key={formation.name}
@@ -39,7 +44,7 @@ export const FormationPicker: React.FC = () => {
                         </Text>
                     </TouchableOpacity>
                 ))}
-            </View>
+            </ScrollView>
         </View>
     );
 };
