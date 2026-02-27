@@ -7,10 +7,12 @@ interface PlayerProps {
     player: FieldPlayer;
     fieldWidth: number;
     fieldHeight: number;
-    onPositionChange: (id: string, x: number, y: number) => void;
+    onPositionChange: (id: string, x: number, y: number) => boolean | void;
     onPress: (id: string) => void;
     onLongPress?: (id: string) => void;
     disabled?: boolean;
+    onDragStart?: (id: string) => void;
+    onDragEnd?: () => void;
 }
 
 export const Player: React.FC<PlayerProps> = ({
@@ -21,6 +23,8 @@ export const Player: React.FC<PlayerProps> = ({
     onPress,
     onLongPress,
     disabled = false,
+    onDragStart,
+    onDragEnd,
 }) => {
     const { globalPlayerSize } = useAppContext();
     const playerSize = player.size ?? globalPlayerSize; // Individual size if set, else global
@@ -37,11 +41,11 @@ export const Player: React.FC<PlayerProps> = ({
     }, [player.x, player.y, fieldWidth, fieldHeight]);
 
     // Fix for Stale Closure: Keep track of latest props
-    const latestProps = useRef({ onPress, onLongPress, onPositionChange, player, disabled });
+    const latestProps = useRef({ onPress, onLongPress, onPositionChange, player, disabled, onDragStart, onDragEnd });
 
     // Update ref on every render
     React.useEffect(() => {
-        latestProps.current = { onPress, onLongPress, onPositionChange, player, disabled };
+        latestProps.current = { onPress, onLongPress, onPositionChange, player, disabled, onDragStart, onDragEnd };
     });
 
     const hasLongPressed = useRef(false);
@@ -59,6 +63,10 @@ export const Player: React.FC<PlayerProps> = ({
                     y: (pan.y as any)._value,
                 });
                 pan.setValue({ x: 0, y: 0 });
+
+                if (latestProps.current.onDragStart) {
+                    latestProps.current.onDragStart(latestProps.current.player.id);
+                }
 
                 Animated.spring(scale, {
                     toValue: 1.1,
@@ -111,7 +119,18 @@ export const Player: React.FC<PlayerProps> = ({
 
                     const percentX = Math.max(0, Math.min(100, (newX / fieldWidth) * 100));
                     const percentY = Math.max(0, Math.min(100, (newY / fieldHeight) * 100));
-                    latestProps.current.onPositionChange(latestProps.current.player.id, percentX, percentY);
+                    const accepted = latestProps.current.onPositionChange(latestProps.current.player.id, percentX, percentY);
+
+                    if (accepted === false) {
+                        Animated.spring(pan, {
+                            toValue: { x: startX, y: startY },
+                            useNativeDriver: false,
+                        }).start();
+                    }
+                }
+
+                if (latestProps.current.onDragEnd) {
+                    latestProps.current.onDragEnd();
                 }
 
                 isDragging.current = false;

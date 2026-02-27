@@ -11,6 +11,7 @@ export interface Player {
     salary?: number;
     purchasePrice?: number;
     salePrice?: number;
+    isSub?: boolean;
 }
 
 export interface FieldPlayer extends Player {

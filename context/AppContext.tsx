@@ -30,7 +30,7 @@ interface AppContextType {
     setGlobalPlayerSize: React.Dispatch<React.SetStateAction<number>>;
     availablePlayers: Player[];
     addPlayerToField: (player: Player, x: number, y: number) => void;
-    updatePlayerPosition: (playerId: string, x: number, y: number) => void;
+    updatePlayerPosition: (playerId: string, x: number, y: number) => boolean | void;
     updatePlayerColor: (playerId: string, color: string) => void;
     updatePlayerName: (playerId: string, name: string) => void;
     updatePlayerNumber: (playerId: string, number: number) => void;
@@ -84,9 +84,53 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     const updatePlayerPosition = (playerId: string, x: number, y: number) => {
-        setFieldPlayers((prev) =>
-            prev.map((p) => (p.id === playerId ? { ...p, x, y } : p))
-        );
+        const dragPlayer = fieldPlayers.find(p => p.id === playerId);
+        if (!dragPlayer) return true;
+
+        let swappedPlayerId: string | null = null;
+        for (const p of fieldPlayers) {
+            if (p.id !== playerId) {
+                const dx = p.x - x;
+                const dy = (p.y - y) * 1.6; // adjust for roughly 1.6 aspect ratio
+                const distPercentage = Math.hypot(dx, dy);
+
+                if (distPercentage < 8) { // ~8% distance collision threshold
+                    swappedPlayerId = p.id;
+                    break;
+                }
+            }
+        }
+
+        let accepted = true;
+
+        if (swappedPlayerId) {
+            // Perform Swap
+            const targetPlayer = fieldPlayers.find(p => p.id === swappedPlayerId)!;
+            setFieldPlayers(prev => prev.map(p => {
+                if (p.id === playerId) {
+                    return { ...p, x: targetPlayer.x, y: targetPlayer.y, isSub: targetPlayer.isSub };
+                }
+                if (p.id === swappedPlayerId) {
+                    return { ...p, x: dragPlayer.x, y: dragPlayer.y, isSub: dragPlayer.isSub };
+                }
+                return p;
+            }));
+        } else if (dragPlayer.isSub) {
+            // Did not swap with any player, so snap back to bench
+            accepted = false;
+        } else if (!dragPlayer.isSub && x > 80 && y < 30) {
+            // Field player dropped on bench area (top right)
+            setFieldPlayers(prev => {
+                const subs = prev.filter(p => !!p.isSub);
+                const newY = 15 + (subs.length * 10);
+                return prev.map((p) => (p.id === playerId ? { ...p, x: 88, y: newY, isSub: true } : p));
+            });
+        } else {
+            // Normal update if no swap
+            setFieldPlayers(prev => prev.map((p) => (p.id === playerId ? { ...p, x, y } : p)));
+        }
+
+        return accepted;
     };
 
     const updatePlayerColor = (playerId: string, color: string) => {
@@ -197,40 +241,46 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             let newPlayers = [...prevPlayers];
 
             const targetSize = formation.positions.length; // 11 for football, 5 for basketball
-            if (newPlayers.length < targetSize) {
-                const missingCount = targetSize - newPlayers.length;
+
+            // Retain any existing substitute players instead of deleting them.
+            const existingSubs = newPlayers.filter(p => p.isSub);
+            let fieldPlayersOnly = newPlayers.filter(p => !p.isSub);
+
+            if (fieldPlayersOnly.length < targetSize) {
+                const missingCount = targetSize - fieldPlayersOnly.length;
                 for (let i = 0; i < missingCount; i++) {
-                    newPlayers.push({
+                    fieldPlayersOnly.push({
                         id: `auto_${Date.now()}_${i}`,
                         name: '',
                         position: 'MF',
-                        number: newPlayers.length + 1 + i,
+                        number: fieldPlayersOnly.length + 1 + i,
                         color: globalKitColor,
                         numberColor: globalNumberColor,
                         x: 50, y: 50
                     });
                 }
+            } else if (fieldPlayersOnly.length > targetSize) {
+                fieldPlayersOnly = fieldPlayersOnly.slice(0, targetSize);
             }
 
-            return newPlayers.map((player, index) => {
-                if (index < formation.positions.length) {
-                    const targetPos = formation.positions[index];
-                    let newName = player.name;
-                    if (!player.name || STANDARD_POSITIONS.includes(player.name)) {
-                        newName = targetPos.label;
-                    }
-
-                    return {
-                        ...player,
-                        x: targetPos.x,
-                        y: targetPos.y,
-                        // Use formation-specific number if available, otherwise keep existing or calculate
-                        number: targetPos.number ?? player.number,
-                        name: newName
-                    };
+            const updatedFieldPlayers = fieldPlayersOnly.map((player, index) => {
+                const targetPos = formation.positions[index];
+                let newName = player.name;
+                if (!player.name || STANDARD_POSITIONS.includes(player.name) || player.name === 'SUB') {
+                    newName = targetPos.label;
                 }
-                return player;
+
+                return {
+                    ...player,
+                    x: targetPos.x,
+                    y: targetPos.y,
+                    // Use formation-specific number if available, otherwise keep existing or calculate
+                    number: targetPos.number ?? player.number,
+                    name: newName
+                };
             });
+
+            return [...updatedFieldPlayers, ...existingSubs];
         });
     };
 

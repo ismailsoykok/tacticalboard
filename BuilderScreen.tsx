@@ -13,6 +13,7 @@ import {
     Image,
     ScrollView,
     TextInput,
+    Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ViewShot from 'react-native-view-shot';
@@ -31,7 +32,7 @@ import { Toolbar } from './components/Toolbar';
 import { FieldType, IconType } from './types';
 
 const FIELD_ASPECT_RATIO = 1.6;
-const COLORS = ['#2196F3', '#F44336', '#4CAF50', '#FFC107', '#9C27B0', '#212121', '#FFFFFF', '#FF5722', '#163962'];
+const COLORS = ['#2196F3', '#F44336', '#4CAF50', '#FFD700', '#9C27B0', '#212121', '#FFFFFF', '#FF5722', '#163962'];
 
 function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
     const viewShotRef = useRef<ViewShot>(null);
@@ -42,6 +43,11 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
     const [showAddIcon, setShowAddIcon] = useState(false);
     const [showEditIcon, setShowEditIcon] = useState(false);
     const [showSaveNameModal, setShowSaveNameModal] = useState(false);
+
+    // Bench State
+    const [isBenchOpen, setIsBenchOpen] = useState(false);
+    const [draggingPlayerId, setDraggingPlayerId] = useState<string | null>(null);
+    const [isCapturing, setIsCapturing] = useState(false);
 
     // REBUILD MODE STATE
     const [rebuildMode, setRebuildMode] = useState(false);
@@ -258,6 +264,40 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
         setShowAddPlayer(false);
     };
 
+    const handleAddSubstitute = () => {
+        const subs = fieldPlayers.filter(p => p.isSub);
+        if (subs.length >= 9) return;
+
+        const mainCount = fieldPlayers.filter(p => !p.isSub).length;
+        const newY = 15 + (subs.length * 10);
+
+        const newPlayer = {
+            id: `sub_${Date.now()}`,
+            name: 'SUB',
+            number: mainCount + subs.length + 1,
+            position: 'MF' as any,
+            color: globalKitColor,
+            numberColor: globalNumberColor,
+            isSub: true,
+            x: 88,
+            y: newY
+        };
+
+        setFieldPlayers(prev => [...prev, newPlayer]);
+    };
+
+    const handleDragStart = useCallback((id: string) => {
+        setDraggingPlayerId(id);
+        const p = fieldPlayers.find(x => x.id === id);
+        if (p?.isSub) {
+            setIsBenchOpen(false);
+        }
+    }, [fieldPlayers]);
+
+    const handleDragEnd = useCallback(() => {
+        setDraggingPlayerId(null);
+    }, []);
+
     const handleStartRebuild = () => {
         if (fieldPlayers.length === 0) {
             Alert.alert('Uyarı', 'Sahada oyuncu olmadan Rebuild başlatılamaz.');
@@ -434,12 +474,20 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
             }
 
             if (viewShotRef.current && viewShotRef.current.capture) {
+                setIsCapturing(true);
                 setTimeout(async () => {
-                    const uri = await viewShotRef.current!.capture!();
-                    const asset = await MediaLibrary.createAssetAsync(uri);
-                    await MediaLibrary.createAlbumAsync('Taktik Tahtası', asset, false);
-                    Alert.alert('Başarılı', 'Taktik görseli galeriye kaydedildi!');
-                }, 100);
+                    try {
+                        const uri = await viewShotRef.current!.capture!();
+                        const asset = await MediaLibrary.createAssetAsync(uri);
+                        await MediaLibrary.createAlbumAsync('Taktik Tahtası', asset, false);
+                        Alert.alert('Başarılı', 'Taktik görseli galeriye kaydedildi!');
+                    } catch (captureError) {
+                        console.error('Capture error:', captureError);
+                        Alert.alert('Hata', 'Görüntü oluşturulamadı.');
+                    } finally {
+                        setIsCapturing(false);
+                    }
+                }, 300); // 300ms delay to ensure the UI has time to re-render without the buttons
             }
         } catch (error) {
             console.error('Save error:', error);
@@ -458,7 +506,7 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
     ];
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }]}>
             <StatusBar barStyle="light-content" backgroundColor="#121212" />
 
             {/* Header */}
@@ -555,7 +603,7 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
                         style={[
                             styles.viewShot,
                             {
-                                width: fieldDimensions.width,
+                                width: isCapturing ? fieldDimensions.width + 80 : fieldDimensions.width,
                                 height: fieldDimensions.height,
                             },
                         ]}
@@ -563,7 +611,7 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
                         <View
                             collapsable={false}
                             style={{
-                                width: fieldDimensions.width,
+                                width: isCapturing ? fieldDimensions.width + 80 : fieldDimensions.width,
                                 height: fieldDimensions.height,
                                 transform: fieldTilt > 0 ? [
                                     { perspective: 1000 },
@@ -578,9 +626,9 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
                                 height={fieldDimensions.height}
                             />
 
-                            {/* Layer 2: Players */}
-                            <View style={StyleSheet.absoluteFill}>
-                                {fieldPlayers.map((player) => (
+                            {/* Layer 2: Main Players and Icons */}
+                            <View style={[StyleSheet.absoluteFill, { zIndex: 2 }]} pointerEvents="box-none">
+                                {fieldPlayers.filter(p => !p.isSub).map((player) => (
                                     <Player
                                         key={player.id}
                                         player={player}
@@ -589,7 +637,9 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
                                         onPositionChange={updatePlayerPosition}
                                         onPress={handlePlayerPress}
                                         onLongPress={handlePlayerLongPress}
-                                        disabled={isDrawingMode}
+                                        disabled={isDrawingMode || isBenchOpen}
+                                        onDragStart={handleDragStart}
+                                        onDragEnd={handleDragEnd}
                                     />
                                 ))}
                                 {icons.map((icon) => (
@@ -600,7 +650,7 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
                                         fieldHeight={fieldDimensions.height}
                                         onPositionChange={updateIconPosition}
                                         onPress={handleIconPress}
-                                        disabled={isDrawingMode}
+                                        disabled={isDrawingMode || isBenchOpen}
                                     />
                                 ))}
                             </View>
@@ -610,10 +660,137 @@ function TacticsBoard({ route, navigation }: { route: any, navigation: any }) {
                                 width={fieldDimensions.width}
                                 height={fieldDimensions.height}
                             />
+
+                            {/* Layer 4: Bench Panel */}
+                            {(isBenchOpen || isCapturing) && (
+                                <View style={{
+                                    position: 'absolute',
+                                    right: 0,
+                                    top: 0,
+                                    bottom: 0,
+                                    width: isCapturing ? 80 : '18%',
+                                    backgroundColor: '#1a1a1a',
+                                    borderLeftWidth: 1,
+                                    borderLeftColor: 'rgba(255, 255, 255, 0.2)',
+                                    zIndex: 11,
+                                    elevation: 50,
+                                    alignItems: 'center',
+                                    paddingTop: 10,
+                                }}>
+                                    <Text style={{
+                                        color: 'rgba(255,255,255,0.7)',
+                                        fontWeight: 'bold',
+                                        fontSize: 10,
+                                        letterSpacing: 1,
+                                        marginBottom: 10
+                                    }}>
+                                        YEDEKLER
+                                    </Text>
+                                    {!isCapturing && (
+                                        <TouchableOpacity
+                                            onPress={handleAddSubstitute}
+                                            disabled={fieldPlayers.filter(p => !!p.isSub).length >= 9}
+                                            style={{
+                                                paddingVertical: 6,
+                                                paddingHorizontal: 8,
+                                                backgroundColor: 'rgba(255,255,255,0.2)',
+                                                borderRadius: 4,
+                                                opacity: fieldPlayers.filter(p => !!p.isSub).length >= 9 ? 0.5 : 1
+                                            }}
+                                        >
+                                            <Text style={{ color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>+ Ekle</Text>
+                                        </TouchableOpacity>
+                                    )}
+
+                                    {/* STATIC SUBSTITUTES FOR SCREENSHOT ONLY */}
+                                    {isCapturing && fieldPlayers.filter(p => !!p.isSub).map((player) => {
+                                        const pSize = player.size ?? globalPlayerSize;
+                                        return (
+                                            <View key={`static_${player.id}`} style={{ alignItems: 'center', marginTop: 10 }}>
+                                                <View style={{
+                                                    width: pSize,
+                                                    height: pSize,
+                                                    borderRadius: pSize / 2,
+                                                    backgroundColor: player.color,
+                                                    justifyContent: 'center',
+                                                    alignItems: 'center',
+                                                    borderWidth: 1,
+                                                    borderColor: 'rgba(255,255,255,0.4)',
+                                                }}>
+                                                    <Text style={{ color: player.numberColor, fontSize: pSize * 0.4, fontWeight: 'bold' }}>
+                                                        {player.number}
+                                                    </Text>
+                                                </View>
+                                                <View style={{
+                                                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                                    borderRadius: 4,
+                                                    paddingHorizontal: 4,
+                                                    paddingVertical: 2,
+                                                    marginTop: 2,
+                                                    minWidth: 40,
+                                                    alignItems: 'center',
+                                                }}>
+                                                    <Text style={{ color: '#FFF', fontSize: 10, fontWeight: 'bold' }} numberOfLines={1}>
+                                                        {player.name}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+                            )}
+
+                            {/* Layer 5: Substitute Players */}
+                            <View style={[StyleSheet.absoluteFill, { zIndex: 12 }]} pointerEvents="box-none">
+                                {fieldPlayers.filter(p => p.isSub).map((player) => {
+                                    if (isCapturing) return null; // HIDE dynamic players during capture
+
+                                    // If bench is closed and substitute is still sitting in bench area (right side), hide them
+                                    const isSittingOnBench = player.x > 80;
+                                    if (!isBenchOpen && isSittingOnBench && draggingPlayerId !== player.id) return null;
+
+                                    return (
+                                        <Player
+                                            key={player.id}
+                                            player={player}
+                                            fieldWidth={fieldDimensions.width}
+                                            fieldHeight={fieldDimensions.height}
+                                            onPositionChange={updatePlayerPosition}
+                                            onPress={handlePlayerPress}
+                                            onLongPress={handlePlayerLongPress}
+                                            disabled={isDrawingMode}
+                                            onDragStart={handleDragStart}
+                                            onDragEnd={handleDragEnd}
+                                        />
+                                    );
+                                })}
+                            </View>
+                            {/* Substitutes Toggle Button inside Field */}
+                            {!isCapturing && (
+                                <TouchableOpacity
+                                    style={{
+                                        position: 'absolute',
+                                        top: 15,
+                                        right: 15,
+                                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                        paddingHorizontal: 15,
+                                        paddingVertical: 8,
+                                        borderRadius: 20,
+                                        zIndex: 10,
+                                        borderWidth: 1,
+                                        borderColor: 'rgba(255, 255, 255, 0.3)',
+                                    }}
+                                    onPress={() => setIsBenchOpen(!isBenchOpen)}
+                                >
+                                    <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 12 }}>
+                                        {isBenchOpen ? 'Yedekleri Gizle' : 'Yedekler'}
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                     </ViewShot>
                 )}
-            </View>
+            </View >
 
             <Toolbar onSave={handleSave} />
 

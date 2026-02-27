@@ -53,8 +53,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onSave }) => {
     const [showTilt, setShowTilt] = useState(false);
     const [showSize, setShowSize] = useState(false);
     const [showGlobalColor, setShowGlobalColor] = useState(false);
-
-    const COLORS = ['#2196F3', '#F44336', '#4CAF50', '#FFC107', '#9C27B0', '#212121', '#FFFFFF', '#FF5722', '#163962'];
+    const COLORS = ['#2196F3', '#F44336', '#4CAF50', '#FFD700', '#9C27B0', '#212121', '#FFFFFF', '#FF5722', '#163962'];
 
     const handleClearAll = () => {
         Alert.alert(

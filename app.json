@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "futboltahtasi",
-    "slug": "tacticalboard-wgfdxjpukslkamepfadoc",
+    "slug": "tacticalboard-102",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -51,7 +51,7 @@
     "owner": "rambokans-organization",
     "extra": {
       "eas": {
-        "projectId": "edbb5d5f-c93d-4428-b419-69ae5d8b5bb4"
+        "projectId": "05b34e70-4f72-4516-af7d-71863e32c63b"
       }
     }
   }
